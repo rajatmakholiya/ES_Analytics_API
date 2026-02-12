@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule'; // npm install @nestjs/schedule
+import { Cron } from '@nestjs/schedule';
 import { BigQueryService } from '../../common/bigquery/bigquery.service';
-import { InjectRepository } from '@nestjs/typeorm'; // Assuming TypeORM
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DailyAnalytics } from './entities/daily-analytics.entity';
 
@@ -15,7 +15,6 @@ export class AnalyticsSyncService {
     private readonly metricRepo: Repository<DailyAnalytics>,
   ) {}
 
-  // Run every day at 12:30 PM IST
   @Cron('30 12 * * *', { timeZone: 'Asia/Kolkata' })
   async syncYesterdayData() {
     this.logger.log('Starting Daily Analytics Sync...');
@@ -44,10 +43,9 @@ export class AnalyticsSyncService {
 
     this.logger.log(`Found ${rows.length} rows. Upserting to Database...`);
 
-    // Batch Insert / Upsert logic
     await this.metricRepo.upsert(
-      rows.map(row => ({
-        date: row.date.value, // BigQuery date object
+      rows.map((row) => ({
+        date: row.date.value,
         utmSource: row.utm_source,
         utmMedium: row.utm_medium,
         utmCampaign: row.utm_campaign,
@@ -56,9 +54,9 @@ export class AnalyticsSyncService {
         users: Number(row.users),
         newUsers: Number(row.new_users),
         eventCount: Number(row.event_count),
-        engagementRate: Number(row.engagement_rate)
+        engagementRate: Number(row.engagement_rate),
       })),
-      ['date', 'utmSource', 'utmMedium', 'utmCampaign'] // Conflict columns
+      ['date', 'utmSource', 'utmMedium', 'utmCampaign'],
     );
 
     this.logger.log('Sync Complete.');
