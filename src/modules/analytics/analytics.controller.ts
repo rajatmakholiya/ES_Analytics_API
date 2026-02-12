@@ -5,72 +5,60 @@ import { AnalyticsService } from './analytics.service';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
-  /**
-   * -------------------------------------------------------
-   * GET /v1/analytics/utm/metrics
-   * -------------------------------------------------------
-   * Fetches dashboard data from the local PostgreSQL database.
-   * fast, cheap, and supports Daily/Weekly/Monthly rollups.
-   */
   @Get('utm/metrics')
   async getUtmMetrics(
     @Query('rollup') rollup: 'daily' | 'weekly' | 'monthly',
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-    @Query('utmSource') utmSource?: string,
-    @Query('utmMedium') utmMedium?: string,
-    @Query('utmCampaign') utmCampaign?: string,
+    @Query('utmSource') utmSource?: string | string[],
+    @Query('utmMedium') utmMedium?: string | string[],
+    @Query('utmCampaign') utmCampaign?: string | string[],
   ) {
     if (!rollup || !startDate || !endDate) {
-      throw new HttpException(
-        'Missing required parameters: rollup, startDate, endDate',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Missing params', HttpStatus.BAD_REQUEST);
     }
 
-    try {
-      // Handles both single string and array filters (e.g. ?utmMedium=a&utmMedium=b)
-      const filters = {
-        utmSource: utmSource ? (Array.isArray(utmSource) ? utmSource : [utmSource]) : undefined,
-        utmMedium: utmMedium ? (Array.isArray(utmMedium) ? utmMedium : [utmMedium]) : undefined,
-        utmCampaign: utmCampaign ? (Array.isArray(utmCampaign) ? utmCampaign : [utmCampaign]) : undefined,
-      };
+    const filters = {
+      utmSource: this.normalizeArray(utmSource),
+      utmMedium: this.normalizeArray(utmMedium),
+      utmCampaign: this.normalizeArray(utmCampaign),
+    };
 
-      return await this.analyticsService.getMetrics(rollup, startDate, endDate, filters);
+    return await this.analyticsService.getMetrics(rollup, startDate, endDate, filters);
+  }
+
+  @Get('headlines')
+  async getHeadlines(
+    @Query('utmSource') utmSource?: string | string[],
+  ) {
+    const filters = {
+      utmSource: this.normalizeArray(utmSource),
+    };
+    return await this.analyticsService.getHeadlines(filters);
+  }
+
+  @Post('sync/manual')
+  async triggerManualSync() {
+    await this.analyticsService.syncYesterdayData();
+    return { status: 'success', message: 'Sync started' };
+  }
+
+  // Import Legacy Data Endpoint - For One-Time Use
+  @Post('import/legacy')
+  async importLegacyData() {
+    try {
+      const count = await this.analyticsService.importLegacyData();
+      return { status: 'success', message: `Imported ${count} legacy records successfully.` };
     } catch (error) {
-      console.error('Error fetching metrics:', error);
-      throw new HttpException('Internal Server Error', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error instanceof Error ? error.message : 'Import failed', 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
-  /**
-   * -------------------------------------------------------
-   * POST /v1/analytics/sync/manual
-   * -------------------------------------------------------
-   * Manually triggers the BigQuery -> Postgres sync.
-   * Useful for:
-   * 1. Initial Backfill (loading history).
-   * 2. Force updating today's data if something was missed.
-   */
-  @Post('sync/manual')
-  async triggerManualSync() {
-    try {
-      console.log('⚡ Manual Sync Triggered via API...');
-      
-      // Calls the same logic that runs at 9:30 AM automatically
-      // NOTE: Check your 'analytics.service.ts' SQL query before running this!
-      // If you want history, change the SQL to "WHERE event_day >= '2026-01-01'" temporarily.
-      await this.analyticsService.syncYesterdayData();
-
-      return {
-        status: 'success',
-        message: 'Sync job started. Check server logs for progress.',
-      };
-    } catch (error) {
-      throw new HttpException(
-        `Sync failed: ${error.message}`,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
+  private normalizeArray(param?: string | string[]): string[] | undefined {
+    if (!param) return undefined;
+    return Array.isArray(param) ? param : [param];
   }
 }

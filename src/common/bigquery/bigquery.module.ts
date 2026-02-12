@@ -3,6 +3,6 @@ import { BigQueryService } from './bigquery.service';
 
 @Module({
   providers: [BigQueryService],
-  exports: [BigQueryService], // 👈 Critical: This allows AnalyticsModule to use the service
+  exports: [BigQueryService],
 })
 export class BigQueryModule {}

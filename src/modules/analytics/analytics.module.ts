@@ -6,11 +6,7 @@ import { DailyAnalytics } from './entities/daily-analytics.entity';
 import { BigQueryModule } from 'src/common/bigquery/bigquery.module';
 
 @Module({
-  imports: [
-    // 👇 Register the Entity here
-    TypeOrmModule.forFeature([DailyAnalytics]), 
-    BigQueryModule,
-  ],
+  imports: [TypeOrmModule.forFeature([DailyAnalytics]), BigQueryModule],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
   exports: [AnalyticsService],

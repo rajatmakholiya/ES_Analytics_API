@@ -8,9 +8,8 @@ import { DailyAnalytics } from './modules/analytics/entities/daily-analytics.ent
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    ScheduleModule.forRoot(), // 👈 Required for the Cron Job to work
-    
-    // 👇 Database Connection
+    ScheduleModule.forRoot(),
+
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -19,7 +18,7 @@ import { DailyAnalytics } from './modules/analytics/entities/daily-analytics.ent
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'analytics_db',
       entities: [DailyAnalytics],
-      synchronize: true, // Auto-creates table (Set to false in Production)
+      synchronize: true,
     }),
 
     AnalyticsModule,
