@@ -3,7 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { PageMappingsModule } from './modules/page-mappings/page-mappings.module';
 import { DailyAnalytics } from './modules/analytics/entities/daily-analytics.entity';
+import { PageMapping } from './modules/page-mappings/entities/page-mapping.entity';
 
 @Module({
   imports: [
@@ -17,11 +19,17 @@ import { DailyAnalytics } from './modules/analytics/entities/daily-analytics.ent
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'analytics_db',
-      entities: [DailyAnalytics],
-      synchronize: true,
+      entities: [DailyAnalytics, PageMapping],
+      synchronize: false,
+
+      ssl:
+        process.env.DB_HOST !== 'localhost'
+          ? { rejectUnauthorized: false }
+          : false,
     }),
 
     AnalyticsModule,
+    PageMappingsModule,
   ],
 })
 export class AppModule {}

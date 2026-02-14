@@ -243,7 +243,7 @@ export class AnalyticsService {
     return batch.length;
   }
 
-  @Cron('0 12 * * *', { timeZone: 'Asia/Kolkata' })
+  @Cron('10 12 * * *', { timeZone: 'Asia/Kolkata' })
   async syncYesterdayData() {
     this.logger.log('Starting Daily Analytics Sync from BigQuery...');
     const query = `
