@@ -1,101 +1,125 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+Markdown
+# ES Analytics Dashboard
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A full-stack analytics dashboard application designed to track, aggregate, and display UTM-based traffic data. The project consists of a **Next.js frontend** and a **NestJS backend** connected to a PostgreSQL database and Google Cloud BigQuery.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🏗 Repository Structure
 
-## Description
+This repository contains two main directories:
+- `/analytics-api` - The NestJS backend application.
+- `/analytics-dashboard` - The Next.js frontend web application.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## 📋 Prerequisites
 
+Before you begin, ensure you have the following installed on your machine:
+- **Node.js** (v18 or higher recommended)
+- **npm** or **yarn**
+- **PostgreSQL** (Running locally or accessible via a remote URI)
+- **Google Cloud Service Account** (JSON key file) with BigQuery access (for fetching analytics data).
+
+---
+
+## 🚀 Part 1: Backend Setup (`analytics-api`)
+
+The backend is built with NestJS and uses TypeORM to connect to PostgreSQL.
+
+### 1. Navigate to the backend directory
 ```bash
-$ npm install
-```
+cd analytics-api
+2. Install dependencies
+Bash
+npm install
+3. Environment Variables
+Create a .env file in the root of the analytics-api directory. Add the following variables and adjust the database credentials to match your local PostgreSQL setup:
 
-## Compile and run the project
+Code snippet
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password
+DB_NAME=analytics_db
 
-```bash
-# development
-$ npm run start
+# API Port
+PORT=4000
+4. BigQuery Credentials
+Place your Google Cloud Service Account JSON key inside the analytics-api folder and name it keys.json. The backend expects this file to authenticate and fetch data from BigQuery.
 
-# watch mode
-$ npm run start:dev
+5. Run the Backend Server
+Start the development server:
 
-# production mode
-$ npm run start:prod
-```
+Bash
+npm run start:dev
+The API should now be running at http://localhost:4000.
+(Note: TypeORM is configured with synchronize: true in development, so the required database tables like daily_analytics and page_mappings will be created automatically when the app starts).
 
-## Run tests
+💻 Part 2: Frontend Setup (analytics-dashboard)
+The frontend is built with React, Next.js, Tailwind CSS, and uses Axios for API communication.
 
-```bash
-# unit tests
-$ npm run test
+1. Navigate to the frontend directory
+Open a new terminal window and navigate to the frontend folder:
 
-# e2e tests
-$ npm run test:e2e
+Bash
+cd analytics-dashboard
+2. Install dependencies
+Bash
+npm install
+3. Environment Variables (Optional)
+By default, the frontend API requests point to http://localhost:4000. If you need to change this, you can configure it in the source code or create an .env.local file (if you choose to update src/lib/api.ts to use process.env.NEXT_PUBLIC_API_URL).
 
-# test coverage
-$ npm run test:cov
-```
+4. Run the Frontend Server
+Start the Next.js development server:
 
-## Deployment
+Bash
+npm run dev
+The dashboard should now be running at http://localhost:3000.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+🛠️ Features & Usage
+Dashboard Overview (http://localhost:3000/)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+View top-level KPIs (Sessions, Users, Pageviews, Engagement, Recurring Users).
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+Filter data by Date Range, Presets (Last 7 Days, This Month, etc.), and UTM Campaign.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+View daily and weekly traffic trends in the Headlines section.
 
-## Resources
+See detailed page breakdowns in the Traffic Table.
 
-Check out a few resources that may come in handy when working with NestJS:
+Dynamic Page Mappings (http://localhost:3000/settings)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Click the Settings (Gear) icon on the Traffic Table to access the Mappings page.
 
-## Support
+Add, edit, or remove UTM to Page Name mappings.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+These are saved directly to the PostgreSQL database and update the dashboard in real-time.
 
-## Stay in touch
+Data with unmapped UTM mediums will correctly show up as "Data Leakage" in the Total API Traffic card on the main dashboard.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Data Export
 
-## License
+Click the Download icon on the Traffic Table to export the currently filtered data into a .csv file.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+📦 Tech Stack
+Frontend:
 
-# manual sync command
-curl -X POST http://localhost:4000/v1/analytics/sync/manual
+Next.js (React Framework)
+
+Tailwind CSS (Styling)
+
+Lucide React (Icons)
+
+Axios (HTTP Client)
+
+Date-fns (Date Manipulation)
+
+Backend:
+
+NestJS (Node.js Framework)
+
+TypeORM (ORM)
+
+PostgreSQL (Relational Database)
+
+Google Cloud BigQuery API (Data Warehouse)

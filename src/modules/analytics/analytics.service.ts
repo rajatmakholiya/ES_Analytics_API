@@ -252,8 +252,9 @@ export class AnalyticsService {
         country, city, device_category, user_gender, user_age,
         sessions, pageviews, users, new_users, recurring_users, identified_users, event_count, engagement_rate
       FROM \`bigquerytest-486307.analytics_266571177.utm_daily_metrics\`
-      WHERE date = DATE_SUB(CURRENT_DATE('Asia/Kolkata'), INTERVAL 1 DAY)
     `;
+
+      // WHERE date = DATE_SUB(CURRENT_DATE('Asia/Kolkata'), INTERVAL 1 DAY)
 
     try {
       const rows = await this.bq.query(query);
