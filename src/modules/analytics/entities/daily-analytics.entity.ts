@@ -1,17 +1,8 @@
 import { Entity, Column, PrimaryGeneratedColumn, Index, Unique } from 'typeorm';
 
 @Entity('daily_analytics')
-@Unique([
-  'date',
-  'utmSource',
-  'utmMedium',
-  'utmCampaign',
-  'country',
-  'city',
-  'deviceCategory',
-  'userGender',
-  'userAge',
-])
+// Only use primary identifiers to prevent NULL conflict errors during upsert
+@Unique(['date', 'utmSource', 'utmMedium', 'utmCampaign'])
 export class DailyAnalytics {
   @PrimaryGeneratedColumn()
   id: number;

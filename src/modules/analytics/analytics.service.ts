@@ -7,6 +7,7 @@ import { DailyAnalytics } from './entities/daily-analytics.entity';
 import { subDays, format } from 'date-fns';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as readline from 'readline';
 
 type Rollup = 'daily' | 'weekly' | 'monthly';
 
@@ -44,20 +45,19 @@ export class AnalyticsService {
         'a.utmSource as utm_source',
         'a.utmMedium as utm_medium',
         'a.utmCampaign as utm_campaign',
-        'a.country as country',
-        'a.city as city',
-        'a.userGender as user_gender',
-        'a.userAge as user_age',
-        'a.sessions as sessions',
-        'a.pageviews as pageviews',
-        'a.users as users',
-        'a.newUsers as new_users',
-        'a.recurringUsers as recurring_users',
-        'a.identifiedUsers as identified_users',
-        'a.eventCount as event_count',
-        'a.engagementRate as engagement_rate',
+        'SUM(a.sessions) as sessions',
+        'SUM(a.pageviews) as pageviews',
+        'SUM(a.users) as users',
+        'SUM(a.newUsers) as new_users',
+        'SUM(a.recurringUsers) as recurring_users',
+        'SUM(a.identifiedUsers) as identified_users',
+        'SUM(a.eventCount) as event_count',
       ]);
-      qb.orderBy('a.date', 'ASC');
+      qb.groupBy("TO_CHAR(a.date, 'YYYY-MM-DD')");
+      qb.addGroupBy('a.utmSource');
+      qb.addGroupBy('a.utmMedium');
+      qb.addGroupBy('a.utmCampaign');
+      qb.orderBy('event_day', 'ASC');
     } else {
       const timeBucket =
         rollup === 'weekly'
@@ -138,53 +138,53 @@ export class AnalyticsService {
    */
 
   async importLegacyData() {
-    this.logger.log('Starting Legacy Data Import...');
+    this.logger.log('Starting Legacy Data Import via Streams...');
     const filePath = path.join(process.cwd(), 'legacy_data.csv');
 
     if (!fs.existsSync(filePath)) {
       throw new Error('legacy_data.csv not found in project root');
     }
 
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const lines = fileContent.split(/\r?\n/);
+    const fileStream = fs.createReadStream(filePath);
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity,
+    });
 
-    if (lines.length < 3)
-      throw new Error('CSV file is empty or invalid format');
-
-    const dateRow = this.parseCSVLine(lines[1]);
+    let lineCount = 0;
     const dateMap: Record<number, string> = {};
     const startDate = new Date('2025-11-04');
     const endDate = new Date('2026-02-08');
 
-    dateRow.forEach((val, index) => {
-      if (!val) return;
+    let batch: any[] = [];
+    const BATCH_SIZE = 2000;
+    let totalInserted = 0;
 
-      const d = new Date(val);
-
-      if (!isNaN(d.getTime())) {
-        if (d >= startDate && d <= endDate) {
-          dateMap[index] = format(d, 'yyyy-MM-dd');
-        }
-      }
-    });
-
-    this.logger.log(
-      `Found ${Object.keys(dateMap).length} relevant date columns.`,
-    );
-
-    const batch: any[] = [];
-    const dataLines = lines.slice(2);
-
-    for (const line of dataLines) {
+    for await (const line of rl) {
+      lineCount++;
       if (!line.trim()) continue;
+
       const values = this.parseCSVLine(line);
+
+      if (lineCount === 2) {
+        values.forEach((val, index) => {
+          if (!val) return;
+          const d = new Date(val);
+          if (!isNaN(d.getTime())) {
+            if (d >= startDate && d <= endDate) {
+              dateMap[index] = format(d, 'yyyy-MM-dd');
+            }
+          }
+        });
+        this.logger.log(`Found ${Object.keys(dateMap).length} relevant date columns.`);
+        continue;
+      }
+
+      if (lineCount <= 2) continue;
 
       const newUtmLink = values[2];
       const oldUtmLink = values[3];
-      const link =
-        newUtmLink && newUtmLink.includes('utm_medium')
-          ? newUtmLink
-          : oldUtmLink;
+      const link = newUtmLink && newUtmLink.includes('utm_medium') ? newUtmLink : oldUtmLink;
 
       if (!link || !link.includes('utm_source')) continue;
 
@@ -219,74 +219,8 @@ export class AnalyticsService {
           });
         }
       }
-    }
 
-    this.logger.log(`Inserting ${batch.length} legacy records...`);
-
-    const BATCH_SIZE = 2000;
-    for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-      const chunk = batch.slice(i, i + BATCH_SIZE);
-      await this.analyticsRepo.upsert(chunk, [
-        'date',
-        'utmSource',
-        'utmMedium',
-        'utmCampaign',
-        'country',
-        'city',
-        'deviceCategory',
-        'userGender',
-        'userAge',
-      ]);
-    }
-
-    this.logger.log('Legacy Import Complete.');
-    return batch.length;
-  }
-
-  @Cron('10 12 * * *', { timeZone: 'Asia/Kolkata' })
-  async syncYesterdayData() {
-    this.logger.log('Starting Daily Analytics Sync from BigQuery...');
-    const query = `
-      SELECT
-        date, utm_source, utm_medium, utm_campaign,
-        country, city, device_category, user_gender, user_age,
-        sessions, pageviews, users, new_users, recurring_users, identified_users, event_count, engagement_rate
-      FROM \`bigquerytest-486307.analytics_266571177.utm_daily_metrics\`
-      WHERE date = DATE_SUB(CURRENT_DATE('Asia/Kolkata'), INTERVAL 1 DAY)
-    `;
-
-    try {
-      const rows = await this.bq.query(query);
-      if (!rows || rows.length === 0) {
-        this.logger.warn('No data found in BigQuery.');
-        return;
-      }
-
-      this.logger.log(`Found ${rows.length} rows. Processing...`);
-
-      const entities = rows.map((row: any) => ({
-        date: row.date.value || row.date,
-        utmSource: row.utm_source,
-        utmMedium: row.utm_medium,
-        utmCampaign: row.utm_campaign,
-        country: row.country,
-        city: row.city,
-        deviceCategory: row.device_category,
-        userGender: row.user_gender,
-        userAge: row.user_age,
-        sessions: Number(row.sessions),
-        pageviews: Number(row.pageviews),
-        users: Number(row.users),
-        newUsers: Number(row.new_users),
-        recurringUsers: Number(row.recurring_users),
-        identifiedUsers: Number(row.identified_users),
-        eventCount: Number(row.event_count),
-        engagementRate: Number(row.engagement_rate),
-      }));
-
-      const BATCH_SIZE = 2500;
-      for (let i = 0; i < entities.length; i += BATCH_SIZE) {
-        const batch = entities.slice(i, i + BATCH_SIZE);
+      if (batch.length >= BATCH_SIZE) {
         await this.analyticsRepo.upsert(batch, [
           'date',
           'utmSource',
@@ -298,10 +232,102 @@ export class AnalyticsService {
           'userGender',
           'userAge',
         ]);
+        totalInserted += batch.length;
+        this.logger.log(`Inserted ${totalInserted} legacy records so far...`);
+        batch = [];
       }
-      this.logger.log('Daily Sync Complete.');
+    }
+
+    if (batch.length > 0) {
+      await this.analyticsRepo.upsert(batch, [
+        'date',
+        'utmSource',
+        'utmMedium',
+        'utmCampaign',
+        'country',
+        'city',
+        'deviceCategory',
+        'userGender',
+        'userAge',
+      ]);
+      totalInserted += batch.length;
+    }
+
+    this.logger.log(`Legacy Import Complete. Total inserted: ${totalInserted}`);
+    return totalInserted;
+  }
+
+  @Cron('10 12 * * *', { timeZone: 'Asia/Kolkata' })
+  async syncYesterdayData() {
+    this.logger.log('Starting Daily Analytics Sync from BigQuery Stream...');
+    
+    const query = `
+      SELECT
+        date, utm_source, utm_medium, utm_campaign,
+        country, city, device_category, user_gender, user_age,
+        sessions, pageviews, users, new_users, recurring_users, identified_users, event_count, engagement_rate
+      FROM \`bigquerytest-486307.analytics_266571177.utm_daily_metrics\`
+      WHERE date >= DATE_SUB(CURRENT_DATE('Asia/Kolkata'), INTERVAL 3 DAY)
+    `;
+
+    try {
+      // Get the stream instead of the full array
+      const stream = await this.bq.queryStream(query);
+      let batch:any[] = [];
+      const BATCH_SIZE = 1500; // Safe for 512MB RAM Render Free Plan
+      let totalProcessed = 0;
+
+      // 'for await' reads chunks of data and automatically handles pausing/resuming
+      for await (const row of stream) {
+        batch.push({
+          date: row.date?.value || row.date,
+          utmSource: row.utm_source || '(direct)',
+          utmMedium: row.utm_medium || '(none)',
+          utmCampaign: row.utm_campaign || '(not set)',
+          country: row.country,
+          city: row.city,
+          deviceCategory: row.device_category,
+          userGender: row.user_gender,
+          userAge: row.user_age,
+          sessions: Number(row.sessions) || 0,
+          pageviews: Number(row.pageviews) || 0,
+          users: Number(row.users) || 0,
+          newUsers: Number(row.new_users) || 0,
+          recurringUsers: Number(row.recurring_users) || 0,
+          identifiedUsers: Number(row.identified_users) || 0,
+          eventCount: Number(row.event_count) || 0,
+          engagementRate: Number(row.engagement_rate) || 0,
+        });
+
+        // When the batch hits 1500, save to DB and clear the array
+        if (batch.length >= BATCH_SIZE) {
+          await this.analyticsRepo.upsert(batch, [
+            'date',
+            'utmSource',
+            'utmMedium',
+            'utmCampaign'
+          ]);
+          totalProcessed += batch.length;
+          this.logger.log(`Upserted ${totalProcessed} records...`);
+          batch = []; // Clear memory
+        }
+      }
+
+      // Insert any remaining rows that didn't fill the final batch
+      if (batch.length > 0) {
+        await this.analyticsRepo.upsert(batch, [
+          'date',
+          'utmSource',
+          'utmMedium',
+          'utmCampaign'
+        ]);
+        totalProcessed += batch.length;
+        this.logger.log(`Upserted final batch. Total: ${totalProcessed} records.`);
+      }
+
+      this.logger.log('Daily Stream Sync Complete.');
     } catch (error) {
-      this.logger.error('Sync Failed:', error);
+      this.logger.error('Stream Sync Failed:', error);
     }
   }
 

@@ -11,13 +11,17 @@ export class BigQueryService {
     });
   }
 
-  async query<T = any>(query: string, params?: Record<string, any>): Promise<T[]> {
-    const [job] = await this.client.createQueryJob({
-      query,
-      params,
-    });
-
+  async query<T = any>(
+    query: string,
+    params?: Record<string, any>,
+  ): Promise<T[]> {
+    const [job] = await this.client.createQueryJob({ query, params });
     const [rows] = await job.getQueryResults();
     return rows as T[];
+  }
+
+  async queryStream(query: string, params?: Record<string, any>) {
+    const [job] = await this.client.createQueryJob({ query, params });
+    return job.getQueryResultsStream();
   }
 }
